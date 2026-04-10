@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toy Survey</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Segoe UI', sans-serif; /* Kid-friendly font */
+            background-color: #f0f8ff;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: #333; margin-bottom: 30px; }
+        
+        #toy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .toy-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            position: relative;
+            user-select: none; /* Prevents blue highlight on rapid tapping */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Shrinks slightly when a kid taps it for satisfying feedback */
+        .toy-card:active {
+            transform: scale(0.92);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .toy-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: contain;
+            border-radius: 10px;
+            pointer-events: none; /* Let the card handle the click */
+        }
+
+        .tally-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #ff4757;
+            color: white;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .controls {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px dashed #ccc;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            background-color: #2ed573;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button.danger { background-color: #ff4757; }
+        
+        button:active { transform: translateY(2px); }
+    </style>
+</head>
+<body>
+
+    <h1>🧸 Tap your favorite toy!</h1>
+
+    <div id="toy-grid"></div>
+
+    <div class="controls">
+        <button onclick="exportResults()">Download Results (CSV)</button>
+        <button class="danger" onclick="resetTallies()">Reset All Votes</button>
+    </div>
+
+    <script>
+        const totalToys = 24;
+        
+        // Try to load existing data from the browser's local storage
+        let toyData = JSON.parse(localStorage.getItem('toySurveyData')) || [];
+
+        // If no data exists, set up 24 empty toy profiles
+        if (toyData.length === 0) {
+            for (let i = 1; i <= totalToys; i++) {
+                // Assumes your images are named toy1.png, toy2.png, etc., in an "images" folder
+                toyData.push({ id: i, image: `images/toy${i}.png`, votes: 0 });
+            }
+        }
+
+        const grid = document.getElementById('toy-grid');
+
+        // Function to build the HTML cards for the screen
+        function renderToys() {
+            grid.innerHTML = ''; // Clear grid
+            toyData.forEach((toy, index) => {
+                const card = document.createElement('div');
+                card.className = 'toy-card';
+                // Add click listener
+                card.onclick = () => vote(index);
+
+                // Add fallback image in case 'images/toyX.png' isn't found
+                card.innerHTML = `
+                    <div class="tally-badge" id="badge-${index}">${toy.votes}</div>
+                    <img src="${toy.image}" alt="Toy ${toy.id}" onerror="this.src='https://via.placeholder.com/150?text=Toy+${toy.id}'">
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Function to handle a tap
+        function vote(index) {
+            toyData[index].votes++; // Add 1 to the tally
+            document.getElementById(`badge-${index}`).innerText = toyData[index].votes; // Update the UI
+            saveData(); // Save to browser storage
+        }
+
+        // Save data so refreshing doesn't clear the survey
+        function saveData() {
+            localStorage.setItem('toySurveyData', JSON.stringify(toyData));
+        }
+
+        // Reset all votes back to zero
+        function resetTallies() {
+            if(confirm("Are you sure you want to reset all votes to zero?")) {
+                toyData = toyData.map(toy => ({...toy, votes: 0}));
+                saveData();
+                renderToys();
+            }
+        }
+
+        // Export data to a simple spreadsheet file
+        function exportResults() {
+            let csvContent = "data:text/csv;charset=utf-8,Toy ID,Votes\n";
+            toyData.forEach(row => {
+                csvContent += `Toy ${row.id},${row.votes}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "toy_survey_results.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild
